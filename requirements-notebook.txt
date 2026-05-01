@@ -1,0 +1,5 @@
+-r requirements-geo.txt
+keplergl>=0.3.2
+jupyterlab>=4.0
+pandas>=2.0
+matplotlib>=3.8

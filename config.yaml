@@ -23,3 +23,14 @@ iceberg:
   catalog_token: "${ICEBERG_CATALOG_TOKEN}"
   namespace: "nyc_tlc"
   batch_size: 500000
+
+geo:
+  shapefile_url: "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zones.zip"
+  local_cache_dir: "data/taxi_zones"
+  r2_reference_prefix: "reference/taxi-zones"
+  h3:
+    resolution: 9
+    coarse_resolution: 7
+  unknown_location_ids:
+    - 264
+    - 265

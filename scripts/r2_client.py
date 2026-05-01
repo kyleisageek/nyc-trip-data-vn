@@ -59,3 +59,10 @@ class R2Client:
             Config=transfer_config,
         )
         logger.info("Upload complete: %s", key)
+
+    def download(self, r2_key: str, local_path: Path) -> None:
+        """Download a file from R2 to a local path."""
+        logger.info("Downloading R2 key %s to %s", r2_key, local_path)
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        self._client.download_file(self._bucket, r2_key, str(local_path))
+        logger.info("Download complete: %s (%d bytes)", local_path, local_path.stat().st_size)

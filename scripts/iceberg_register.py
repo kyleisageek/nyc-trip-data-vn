@@ -1,6 +1,7 @@
 """Register trip data in an Iceberg table via PyIceberg REST catalog."""
 
 import logging
+import time
 from pathlib import Path
 
 import pyarrow as pa
@@ -102,11 +103,29 @@ class IcebergRegistrar:
         for batch in parquet_file.iter_batches(batch_size=self._batch_size):
             arrow_table = pa.Table.from_batches([batch])
             arrow_table = s.align_table_to_schema(arrow_table, target_schema)
-            table.append(arrow_table)
+            self._append_with_retry(table, arrow_table)
             rows_written += len(batch)
             logger.info("  Appended batch: %d / %d rows", rows_written, total_rows)
 
         logger.info("Iceberg registration complete for %s", local_path.name)
+
+    @staticmethod
+    def _append_with_retry(table, arrow_table, max_retries=4, backoff=10):
+        """Append with retry on rate limit errors."""
+        for attempt in range(max_retries):
+            try:
+                table.append(arrow_table)
+                return
+            except Exception as e:
+                if "TooManyRequests" in str(type(e).__name__) or "rate limit" in str(e).lower() or "too many" in str(e).lower():
+                    if attempt < max_retries - 1:
+                        wait = backoff * (2 ** attempt)
+                        logger.warning("Rate limited, retrying in %ds...", wait)
+                        time.sleep(wait)
+                    else:
+                        raise
+                else:
+                    raise
 
 
 def is_configured(config: dict) -> bool:
