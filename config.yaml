@@ -1,0 +1,25 @@
+# NYC TLC Trip Data Pipeline Configuration
+# Environment variables are referenced as ${ENV_VAR} and resolved at runtime.
+
+tlc:
+  base_url: "https://d37ci6vzurychx.cloudfront.net/trip-data"
+  taxi_types:
+    - yellow
+    - green
+    - fhvhv
+  # How far back to probe for available months (from current month)
+  lookback_months: 18
+
+r2:
+  endpoint_url: "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+  bucket: "${R2_BUCKET_NAME}"
+  access_key_id: "${R2_ACCESS_KEY_ID}"
+  secret_access_key: "${R2_SECRET_ACCESS_KEY}"
+  prefix: "tlc-trip-data"
+
+iceberg:
+  catalog_uri: "${ICEBERG_CATALOG_URI}"
+  catalog_warehouse: "${ICEBERG_CATALOG_WAREHOUSE}"
+  catalog_token: "${ICEBERG_CATALOG_TOKEN}"
+  namespace: "nyc_tlc"
+  batch_size: 500000

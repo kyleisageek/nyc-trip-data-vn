@@ -1,0 +1,6 @@
+.env
+*.parquet
+tmp/
+__pycache__/
+*.pyc
+.claude/
