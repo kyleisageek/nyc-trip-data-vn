@@ -90,7 +90,11 @@ class IcebergRegistrar:
         return table
 
     def register(self, local_path: Path, taxi_type: str) -> None:
-        """Read a parquet file and append it to the corresponding Iceberg table in batches."""
+        """Read a parquet file and append it to the Iceberg table.
+
+        Reads the entire file into memory and does a single commit to avoid
+        snapshot conflicts from rapid successive batch commits.
+        """
         table = self._ensure_table(taxi_type)
         target_schema = s.SCHEMAS[taxi_type]
 
@@ -99,13 +103,10 @@ class IcebergRegistrar:
         logger.info("Registering %s (%d rows) into Iceberg table %s",
                      local_path.name, total_rows, self._table_name(taxi_type))
 
-        rows_written = 0
-        for batch in parquet_file.iter_batches(batch_size=self._batch_size):
-            arrow_table = pa.Table.from_batches([batch])
-            arrow_table = s.align_table_to_schema(arrow_table, target_schema)
-            self._append_with_retry(table, arrow_table)
-            rows_written += len(batch)
-            logger.info("  Appended batch: %d / %d rows", rows_written, total_rows)
+        arrow_table = pq.read_table(str(local_path))
+        arrow_table = s.align_table_to_schema(arrow_table, target_schema)
+        self._append_with_retry(table, arrow_table)
+        logger.info("  Committed %d rows in single append", total_rows)
 
         logger.info("Iceberg registration complete for %s", local_path.name)
 

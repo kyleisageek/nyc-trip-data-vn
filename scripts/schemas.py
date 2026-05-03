@@ -85,10 +85,11 @@ SCHEMAS = {
 
 
 def align_table_to_schema(table: pa.Table, schema: pa.Schema) -> pa.Table:
-    """Align a table to the target schema, adding missing columns as nulls.
+    """Align a table to the target schema, adding missing columns and casting types.
 
-    This handles schema evolution — e.g., cbd_congestion_fee was added in 2025,
-    so older files won't have it.
+    Handles schema evolution — e.g., cbd_congestion_fee was added in 2025,
+    so older files won't have it.  Also casts columns whose type differs
+    from the target (e.g., null-typed columns from early parquet files).
     """
     for field in schema:
         if field.name not in table.schema.names:
@@ -96,4 +97,21 @@ def align_table_to_schema(table: pa.Table, schema: pa.Schema) -> pa.Table:
             table = table.append_column(field, null_array)
 
     # Select only columns in the target schema, in the correct order
-    return table.select([f.name for f in schema])
+    table = table.select([f.name for f in schema])
+
+    # Cast any columns whose type doesn't match the target
+    for field in schema:
+        col = table.column(field.name)
+        if col.type != field.type:
+            try:
+                casted = col.cast(field.type)
+            except (pa.ArrowInvalid, pa.ArrowNotImplementedError):
+                # Incompatible types (e.g., string "CAS" → int64) — fill with nulls
+                casted = pa.nulls(len(table), type=field.type)
+            table = table.set_column(
+                table.schema.get_field_index(field.name),
+                field,
+                casted,
+            )
+
+    return table
